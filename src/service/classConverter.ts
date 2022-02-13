@@ -49,6 +49,7 @@ export default class ClassConverter {
     let depth = 0;
     let inClass = false;
     let inEnum = false;
+    let jsonProperty = '';
 
     lines.forEach((l) => {
       const line = l.trim();
@@ -60,6 +61,11 @@ export default class ClassConverter {
         const startDepth = depth;
         depth += (line.match(/{/g) || []).length;
         depth -= (line.match(/}/g) || []).length;
+
+        if (line.indexOf('[JsonProperty') !== -1) {
+          const jsonPropSplit = line.split('"');
+          jsonProperty = jsonPropSplit.length > 1 ? jsonPropSplit[1] : '';
+        }
 
         if (inEnum && depth < startDepth) {
           inEnum = false;
@@ -91,6 +97,8 @@ export default class ClassConverter {
               output += `  ${enumValue},\r\n`;
             }
           }
+
+          jsonProperty = '';
         } else {
           // Prop
           if (inClass && lineSplit.length >= 3 && lineSplit[0] === 'public'
@@ -101,6 +109,11 @@ export default class ClassConverter {
             let type = csharpType;
             let array = false;
             let nullable = false;
+
+            // JsonProperty management
+            if (jsonProperty) {
+              propertyName = jsonProperty;
+            }
 
             // Array management
             if (csharpType.startsWith('List<') && csharpType.endsWith('>')) {
@@ -140,6 +153,8 @@ export default class ClassConverter {
             const nullStr = nullable ? '?' : '';
             const arrayStr = array ? '[]' : '';
             output += `  ${propertyName}${nullStr}: ${type}${arrayStr};\r\n`;
+
+            jsonProperty = '';
           }
 
           // Class
@@ -164,6 +179,8 @@ export default class ClassConverter {
             className = filters.interfacePrefix ? `I${className}` : className;
             const parentClassStr = parentClass ? ` extends ${parentClass}` : '';
             output += `export interface ${className}${parentClassStr} {\r\n`;
+
+            jsonProperty = '';
           }
 
           // Enum
@@ -174,6 +191,8 @@ export default class ClassConverter {
 
             inEnum = true;
             output += `export enum ${enumName} {\r\n`;
+
+            jsonProperty = '';
           }
         }
       }
